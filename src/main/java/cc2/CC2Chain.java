@@ -22,6 +22,7 @@ public class CC2Chain {
 
     /**
      * cc4 版本上的利用链 — 基于 cc4 修改，避免使用 Transformer 数组
+     * 有些中间件会重写类加载方法，如果数组处理不好可能就加载不到
      * 方案 1
      */
     public static void cc2_v0() throws Exception {
